@@ -8,7 +8,7 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
+## Loading in the libraries needed
 ```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse)
 library(dplyr)
@@ -18,18 +18,21 @@ library(modelr)
 library(lubridate)
 knitr::opts_chunk$set(fig.width=8)
 ```
+## Loading in the Data
 
 ```{r}
 dir<-"Project"
 path=file.path(dir,"data_relationship.csv")
 df<-read_csv(path, na=c("-1", " ", "Other", "", "NA"))
-df<-na.omit(df)
+df<-na.omit(df) # Removing NA Values
 df<-filter(df,priceafteroneweek>=0)
 df2<-df[,-c(1,2)]
-df2$date<-as.POSIXct(df2$date, format = "%m/%d/%Y")
+df2$date<-as.POSIXct(df2$date, format = "%m/%d/%Y") # Converting the Date columnn from string to date-time
 head(df2,10)
 write_csv(head(df2,10),"Snippet.csv")
 ```
+## Getting the percent change in stock prices
+
 ```{r}
 df2$percentchangeafterweek<-round(((df2$priceafteroneweek-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
 df2$percentchangeafteronemonth<-round(((df2$priceafteronemonth-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
@@ -38,9 +41,9 @@ df2$percentchangeaftersixmonths<-round(((df2$priceaftersixmonths-df2$transaction
 df2$percentchangeafteryear<-round(((df2$priceafteryear-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
 df2
 ```
+## Seeing if the stock prices increase or decrease after a while
 
 ```{r}
-
 df2<-df2 %>% mutate(changeaftersixmonths=ifelse((priceaftersixmonths-transactionpricepershare)>0, "Increase", "Decrease"))
 df2<-df2 %>% mutate(changeafteramonth=ifelse((priceafteronemonth-transactionpricepershare)>0, "Increase", "Decrease"))
 df2<-df2 %>% mutate(changeafteraweek=ifelse((priceafteroneweek-transactionpricepershare)>0, "Increase", "Decrease"))
@@ -49,7 +52,7 @@ df2
 ```
 
 
-## After a week
+## After a week (Purchase and Sales Transactions)
 
 ```{r, fig.width=8}
 png("oneweekprices.png", width= 960, height= 540, unit= "px")
@@ -80,12 +83,12 @@ ggplot(plot_data10, aes(x= date, color= changeafteraweek)) +
   scale_color_manual(values= c("Red", "green"))
 
 ```
-
+## After a month (Purchase Transactions)
 
 ```{r}
 png("onemonthpricessales.png", width= 960, height= 540, unit= "px")
 plot_data <- df2 %>%
-  filter(date >= "2019-01-01" & date <= "2020-12-31" & transactioncode %in% c("S")) 
+  filter(date >= "2019-01-01" & date <= "2020-12-31" & transactioncode %in% c("P")) 
 plot_data<-distinct(plot_data, rptownercik, changeafteramonth, date, .keep_all = TRUE)
 plot_data$date<-plot_data$date %m+% months(1)
 ggplot(plot_data, aes(x= date, color= changeafteramonth)) + 
@@ -96,6 +99,7 @@ ggplot(plot_data, aes(x= date, color= changeafteramonth)) +
   scale_color_manual(values= c("Red", "green"))
 dev.off()
 ```
+## After Six months (Purchase Transactions)
 
 ```{r}
 png("sixmonthprices.png", width= 960, height= 540, unit= "px")
@@ -111,23 +115,14 @@ ggplot(plot_data, aes(x= date, color= changeaftersixmonths)) +
   scale_color_manual(values= c("Red", "green"))
 dev.off()
 ```
-
+## Purchase Transactions where shares purchased are >10000
 ```{r}
 df3<- df2 %>% filter(transactionshares>=10000 & transactioncode %in% c("P"))
 df3<-distinct(df3, rptownercik, changeafteramonth, date, .keep_all = TRUE)
 df3
 ```
 
-```{r}
-df4<- df3 %>% filter(transactioncode %in% c("P"))
-ggplot(data=df4, aes(x=transactioncode, fill=changeafteraweek)) +
-  geom_bar(position = "dodge") +
-  labs(x="Transaction Code", y="Change", 
-       title="") +
-  theme_minimal() + facet_wrap(~isCEO) 
-```
-
-
+## Performing the Chi-Square test to find the relationship between transaction code and change after a month
 ```{r}
 dftable<-table(df3$transactioncode, df3$changeafteramonth)
 dftable
@@ -136,16 +131,7 @@ prop.table(dftable,1)
 
 chisq.test(dftable)
 ```
-
-
-```{r}
-dftb<-table(df3$is10percentowner, df3$changeafteraweek)
-dftb
-
-prop.table(dftb,1)
-
-chisq.test(dftb)
-```
+## Performing the Chi-Square test to find the relationship between the different positions and change after a month
 
 ```{r}
 y<-c("is10percentowner", "isCEO", "isCAO", "isCFO", "isChairman", "isDirector", "isCIO", "isCMO","isCRO", "isCSO", "isCTO","isEVP", "isPresident_vp", "isSecretary")
@@ -179,7 +165,7 @@ reldf
 ```{r}
 summary(df$transactionshares)
 ```
-
+## Plotting the number of shares in a transaction vs the proportion of shares that increase
 ```{r}
 prop_list <- vector()
 j= 0
@@ -204,6 +190,8 @@ ggplot(prop_data, aes(x=x, y= 100*y)) +
   geom_point() + labs(title="Proportion of shares that increase, increases with more shares per transaction", x="Number of shares per transaction", y="Percent of shares that increase") + theme_gray(base_size = 18)
 dev.off()
 ```
+
+## Plotting the distribution of transaction codes for the dataset
 ```{r}
 #png("plot1.png", width= 1280, height= 800, unit= "px")
 
