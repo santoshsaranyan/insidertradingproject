@@ -48,7 +48,6 @@ df2$changeafteronemonth<-round((df2$priceafteronemonth-df2$transactionpricepersh
 df2
 ```
 
-# Correct graphs from this chunk onwards:
 
 ## After a week
 
