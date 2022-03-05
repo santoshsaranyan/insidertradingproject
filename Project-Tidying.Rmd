@@ -1,0 +1,220 @@
+---
+title: "Project-Tidying"
+author: "Santosh Saranyan"
+date: "11/30/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(modelr)
+library(lubridate)
+knitr::opts_chunk$set(fig.width=8)
+```
+
+```{r}
+dir<-"Project"
+path=file.path(dir,"data_relationship.csv")
+df<-read_csv(path, na=c("-1", " ", "Other", "", "NA"))
+df<-na.omit(df)
+df<-filter(df,priceafteroneweek>=0)
+df2<-df[,-c(1,2)]
+df2$date<-as.POSIXct(df2$date, format = "%m/%d/%Y")
+head(df2,10)
+write_csv(head(df2,10),"Snippet.csv")
+```
+```{r}
+df2$percentchangeafterweek<-round(((df2$priceafteroneweek-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
+df2$percentchangeafteronemonth<-round(((df2$priceafteronemonth-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
+df2$percentchangeafterquarter<-round(((df2$priceafteraquarter-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
+df2$percentchangeaftersixmonths<-round(((df2$priceaftersixmonths-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
+df2$percentchangeafteryear<-round(((df2$priceafteryear-df2$transactionpricepershare)/df2$transactionpricepershare)*100, digits=1)
+df2
+```
+
+```{r}
+
+df2<-df2 %>% mutate(changeaftersixmonths=ifelse((priceaftersixmonths-transactionpricepershare)>0, "Increase", "Decrease"))
+df2<-df2 %>% mutate(changeafteramonth=ifelse((priceafteronemonth-transactionpricepershare)>0, "Increase", "Decrease"))
+df2<-df2 %>% mutate(changeafteraweek=ifelse((priceafteroneweek-transactionpricepershare)>0, "Increase", "Decrease"))
+df2$changeafteronemonth<-round((df2$priceafteronemonth-df2$transactionpricepershare), digits=1)
+df2
+```
+
+# Correct graphs from this chunk onwards:
+
+## After a week
+
+```{r, fig.width=8}
+png("oneweekprices.png", width= 960, height= 540, unit= "px")
+plot_data10 <- df2 %>%
+  filter(date >= "2019-01-01" & date <= "2020-12-31" & transactioncode %in% c("P")) 
+plot_data10<-distinct(plot_data10, rptownercik, changeafteraweek, .keep_all = TRUE)
+plot_data10$date<-plot_data10$date + days(7)
+ggplot(plot_data10, aes(x= date, color= changeafteraweek)) + 
+  stat_count(geom= "line", aes(y= ..count..), position= "dodge", size= 1) + 
+  theme_minimal(base_size = 18) +
+  labs(x= "Date", y= "Number of Transactions",
+       title= "Stock prices after purchase transactions generally seem to increase", color="") + 
+  scale_color_manual(values= c("Red", "green"))
+dev.off()
+```
+
+```{r, fig.width=8}
+
+plot_data10 <- df2 %>%
+  filter(date >= "2019-01-01" & date <= "2020-12-31" & transactioncode %in% c("S")) 
+plot_data10<-distinct(plot_data10, rptownercik, changeafteraweek, date, .keep_all = TRUE)
+plot_data10$date<-plot_data10$date + days(7)
+ggplot(plot_data10, aes(x= date, color= changeafteraweek)) + 
+  stat_count(geom= "line", aes(y= ..count..), position= "dodge", size= 1) + 
+  theme_minimal() +
+  labs(x= "Date", y= "Number of Transactions",
+       title= "Sale Transactions", color="Price compared to one week ago") + 
+  scale_color_manual(values= c("Red", "green"))
+
+```
+
+
+```{r}
+png("onemonthpricessales.png", width= 960, height= 540, unit= "px")
+plot_data <- df2 %>%
+  filter(date >= "2019-01-01" & date <= "2020-12-31" & transactioncode %in% c("S")) 
+plot_data<-distinct(plot_data, rptownercik, changeafteramonth, date, .keep_all = TRUE)
+plot_data$date<-plot_data$date %m+% months(1)
+ggplot(plot_data, aes(x= date, color= changeafteramonth)) + 
+  stat_count(geom= "line", aes(y= ..count..), position= "dodge", size= 1) + 
+  theme_minimal(base_size = 18) +
+  labs(x= "Date", y= "Number of Transactions",
+       title= "Stock prices after sale transactions seem to vary a lot over time", color="") + 
+  scale_color_manual(values= c("Red", "green"))
+dev.off()
+```
+
+```{r}
+png("sixmonthprices.png", width= 960, height= 540, unit= "px")
+plot_data <- df2 %>%
+  filter(date >= "2019-01-01" & date <= "2020-12-31" & transactioncode %in% c("P")) 
+plot_data<-distinct(plot_data, rptownercik, changeaftersixmonths, date, .keep_all = TRUE)
+plot_data$date<-plot_data$date %m+% months(6)
+ggplot(plot_data, aes(x= date, color= changeaftersixmonths)) + 
+  stat_count(geom= "line", aes(y= ..count..), position= "dodge", size= 1) + 
+  theme_minimal(base_size = 18) +
+  labs(x= "Date", y= "Number of Transactions",
+       title= "Stock prices after purchase transactions generally seem to increase after six months", color="") + 
+  scale_color_manual(values= c("Red", "green"))
+dev.off()
+```
+
+```{r}
+df3<- df2 %>% filter(transactionshares>=10000 & transactioncode %in% c("P"))
+df3<-distinct(df3, rptownercik, changeafteramonth, date, .keep_all = TRUE)
+df3
+```
+
+```{r}
+df4<- df3 %>% filter(transactioncode %in% c("P"))
+ggplot(data=df4, aes(x=transactioncode, fill=changeafteraweek)) +
+  geom_bar(position = "dodge") +
+  labs(x="Transaction Code", y="Change", 
+       title="") +
+  theme_minimal() + facet_wrap(~isCEO) 
+```
+
+
+```{r}
+dftable<-table(df3$transactioncode, df3$changeafteramonth)
+dftable
+
+prop.table(dftable,1)
+
+chisq.test(dftable)
+```
+
+
+```{r}
+dftb<-table(df3$is10percentowner, df3$changeafteraweek)
+dftb
+
+prop.table(dftb,1)
+
+chisq.test(dftb)
+```
+
+```{r}
+y<-c("is10percentowner", "isCEO", "isCAO", "isCFO", "isChairman", "isDirector", "isCIO", "isCMO","isCRO", "isCSO", "isCTO","isEVP", "isPresident_vp", "isSecretary")
+rel<-vector()
+inc<-vector()
+dec<-vector()
+pos<-c("10percentOwner", "CEO", "CAO", "CFO", "Chairman", "Director", "CIO", "CMO","CRO", "CSO", "CTO","EVP", "President", "Secretary")
+for (i in y){
+  print(i)
+  dftb2<-table(pull(df3,i), df3$changeafteramonth)
+  print(dftb2)
+  if(length(as.numeric(table(dftb2)))>2){
+  #inc<-append(inc,as.numeric(table(dftb2))[[4]])
+  #dec<-append(dec,as.numeric(table(dftb2))[[3]])
+  rel<-append(rel,as.numeric(prop.table(dftb2,1))[[4]]*100)
+  }
+else{
+  rel<-append(rel,NA)
+  #inc<-append(inc,0)
+  #dec<-append(dec,0)
+  }
+  print(prop.table(dftb2,1))
+  #chi<-append(chi,round(as.numeric(as.list(chisq.test(dftb2))[[1]]),digits=2))
+  print(chisq.test(dftb2))
+}
+reldf<-data.frame(Position=pos,PercentIncrease=rel,ChisquareValue=chi)
+reldf[10,3]=0
+reldf
+
+```
+```{r}
+summary(df$transactionshares)
+```
+
+```{r}
+prop_list <- vector()
+j= 0
+for (i in seq(0,50000, 2000)){
+  df_temp <- filter(df3, transactioncode %in% c("P") & transactionshares > i)
+  dftable<-table(df_temp$transactioncode, df_temp$changeafteramonth)
+  prop_list <- append(prop_list, as.numeric(prop.table(dftable,1))[[2]])
+}
+
+prop_data= data.frame(x=seq(0, 50000, 2000), y= prop_list)
+prop_data
+ggplot(prop_data, aes(x=x, y= 100*y)) + 
+  geom_line() + 
+  geom_point() +
+  ylim(0, 80)
+
+prop_data= data.frame(x=seq(0, 50000, 2000), y= prop_list)
+prop_data
+
+png("shareinc.png", width= 960, height= 540, unit= "px")
+ggplot(prop_data, aes(x=x, y= 100*y)) + 
+  geom_point() + labs(title="Proportion of shares that increase, increases with more shares per transaction", x="Number of shares per transaction", y="Percent of shares that increase") + theme_gray(base_size = 18)
+dev.off()
+```
+```{r}
+#png("plot1.png", width= 1280, height= 800, unit= "px")
+
+ggplot(df2, aes(x= factor(transactioncode,levels= names(sort(table(transactioncode),
+                                                               decreasing =  TRUE))))) + 
+  geom_bar() + 
+  theme_minimal() + 
+  labs(x= "Transaction code",
+       y= "Number of Transactions",
+       title= "Majority of the fillings are for Sales and Acquision")
+
+#dev.off()
+```
