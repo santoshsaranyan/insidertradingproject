@@ -10,3 +10,6 @@ by their position, as well as whether there was a correlation between insider tr
 company.
 
 • Discovered that purchases made by insiders have a positive correlation with the stock prices of their company
+
+WebsScraping.ipynb contains code to get data from the Form 4 filings.
+Project-Tidying.rmd focuses on analysing this data.
